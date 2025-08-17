@@ -88,6 +88,23 @@ class Renderer(object):
 		
 		self.zBuffer = [[float("inf") for y in range(self.height)]
 				  		for x in range(self.width)]
+		
+	def glClearBackground(self):
+		self.glClear()
+
+		if self.background == None:
+			return
+		
+		for x in range(self.vpX, self.vpX + self.vpWidth + 1):
+			for y in range(self.vpY, self.vpY + self.vpHeight + 1):
+
+				u = (x - self.vpX) / self.vpWidth
+				v = 1 - (y - self.vpY) / self.vpHeight
+
+				texColor = self.background.getColor(u, v)
+
+				if texColor:
+					self.glPoint(x, y, texColor)
 	
 
 
@@ -415,19 +432,4 @@ class Renderer(object):
 				self.glTriangle(A,B,C)
 
 
-	def glClearBackground(self):
-		self.glClear()
-
-		if self.background = None:
-			return
 		
-		for x in range(self.vpX, self.vpX + self.vpWidth + 1):
-			for y in range(self.vpY, self.vpY + self.vpHeight + 1):
-
-				u = (x - self.vpX)
-				v = (y - self.vpY)
-
-				texColor = self.background.getColor(u, y)
-
-				if texColor:
-					self.glPoint(x, y, texColor)	

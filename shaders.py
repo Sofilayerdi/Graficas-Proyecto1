@@ -20,7 +20,7 @@ def vertexShader(vertex, normal, **kwargs):
           normal[2],
           0]
 
-    vt = viewportMatrix * projectionMatrix * viewMatrix * modelMatrix @ vt
+    vt = (viewportMatrix * projectionMatrix * viewMatrix * modelMatrix) @ vt
     vt = vt.tolist()[0]
 
     nt = modelMatrix @ nt
