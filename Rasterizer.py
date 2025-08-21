@@ -45,7 +45,7 @@ model4 = Model("Penguin.obj")
 model4.LoadTexture("Penguin.bmp")
 model4.vertexShader = vertexShader
 model4.fragmentShader = oceanShader
-model4.translation[1] = 0
+model4.translation[1] = -2
 model4.translation[2] = -10
 model4.scale = [(i*2) for i in model4.scale]
 rend.models.append(model4)
