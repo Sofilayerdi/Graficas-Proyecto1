@@ -57,21 +57,26 @@ def flatShader(**kwargs):
               (nA[2]+nB[2]+nC[2])/3]
     
     #intensity = normal DOT -dirLight
-    intensity = np.dot(normal, -np.array(dirLight))
-    intensity = max(0, intensity)
+    #intensity = np.dot(normal, -np.array(dirLight))
+    #intensity = max(0, intensity)
 
-    r *= intensity
-    g *= intensity
-    b *= intensity
+    #r *= intensity
+    #g *= intensity
+    #b *= intensity
 
     return [r, g, b]
 
 def gouradShader(**kwargs):
     A, B, C = kwargs["verts"]
     u, v, w = kwargs["bCoords"]
-    r, g , b = kwargs["pixelColor"]
+    r, g, b = kwargs["pixelColor"]
     dirLight = kwargs["dirLight"]
     textureList = kwargs.get("textureList")
+
+    # Verificar que tenemos suficiente información en los vértices
+    if len(A) < 8 or len(B) < 8 or len(C) < 8:
+        print("Warning: Vértices sin suficiente información")
+        return [r, g, b]
 
     nA = [A[3], A[4], A[5]]
     nB = [B[3], B[4], B[5]]
@@ -81,32 +86,37 @@ def gouradShader(**kwargs):
     tB = [B[6], B[7]]
     tC = [C[6], C[7]]
 
+    # Interpolación de normales
     normal = [u*nA[0] + v*nB[0] + w*nC[0],
               u*nA[1] + v*nB[1] + w*nC[1],
               u*nA[2] + v*nB[2] + w*nC[2]]
     
+    # Normalizar la normal
+    normal_length = (normal[0]**2 + normal[1]**2 + normal[2]**2)**0.5
+    if normal_length > 0:
+        normal = [n/normal_length for n in normal]
     
+    # Interpolación de UVs
     UVs = [u*tA[0] + v*tB[0] + w*tC[0],
            u*tA[1] + v*tB[1] + w*tC[1]]
     
-    if textureList is not None:
-        if len(textureList) > 0:
-            texColor = textureList[0].getColor(UVs[0], UVs[1])
+    # Aplicar textura
+    if textureList and len(textureList) > 0:
+        try:
+            # Asegurar que UVs están en rango válido
+            u_clamped = max(0.0, min(0.999, UVs[0]))
+            v_clamped = max(0.0, min(0.999, UVs[1]))
+            
+            texColor = textureList[0].getColor(u_clamped, v_clamped)
+            if texColor and len(texColor) >= 3:
+                r = texColor[0]
+                g = texColor[1] 
+                b = texColor[2]
+        except Exception as e:
+            print(f"Error accessing texture: {e}")
 
-            r *= texColor[0]
-            g *= texColor[1]
-            b *= texColor[2]
+    return [max(0, min(1, r)), max(0, min(1, g)), max(0, min(1, b))]
 
-    
-    #intensity = normal DOT -dirLight
-    intensity = np.dot(normal, -np.array(dirLight))
-    intensity = max(0, intensity)
-
-    r *= intensity
-    g *= intensity
-    b *= intensity
-
-    return [r, g, b]
 
 
 def RainbowShader(**kwargs):
@@ -186,131 +196,29 @@ def fireShader(**kwargs):
     A, B, C = kwargs["verts"]
     u, v, w = kwargs["bCoords"]
     
-    # Base de las llamas (zona más caliente)
-    flame_base = 1.0 - v  # Más intenso en la parte inferior
+    flame_base = 1.0 - v  
     
-    # Patrón de llamas con ruido fractal
     noise1 = math.sin(u * 10.0 + v * 20.0) * 0.5
     noise2 = math.sin(u * 7.0 - v * 15.0) * 0.3
     noise3 = math.sin(u * 15.0 + v * 25.0) * 0.2
     combined_noise = (noise1 + noise2 + noise3) * v
     
-    # Forma de las llamas
     flame_shape = flame_base * (1.0 + combined_noise)
     
-    # Gradiente de color (de amarillo a rojo)
-    r = min(1.0, flame_shape * 1.2)  # Componente roja
-    g = flame_shape * 0.6             # Componente verde
-    b = flame_shape * 0.1             # Componente azul
+    r = min(1.0, flame_shape * 1.2)  
+    g = flame_shape * 0.6             
+    b = flame_shape * 0.1             
     
-    # Zona más caliente (núcleo de la llama)
     hot_core = max(0.0, flame_shape - 0.7) * 2.0
     r += hot_core * 0.5
     g += hot_core * 0.3
     
-    # Efecto de chispas aleatorias
     if random.random() > 0.98:
-        r, g, b = 1.0, 1.0, 0.8  # Destellos blancos
+        r, g, b = 1.0, 1.0, 0.8  
     
     return [r, g, b]
 
-def neonShader(**kwargs):
-    """Shader de neón con bordes brillantes y colores vibrantes"""
-    A, B, C = kwargs["verts"]
-    u, v, w = kwargs["bCoords"]
-    
-    # Calcular normal interpolada
-    nA = [A[3], A[4], A[5]]
-    nB = [B[3], B[4], B[5]]
-    nC = [C[3], C[4], C[5]]
-    normal = [u*nA[0] + v*nB[0] + w*nC[0],
-              u*nA[1] + v*nB[1] + w*nC[1],
-              u*nA[2] + v*nB[2] + w*nC[2]]
-    
-    # Fresnel effect (bordes más brillantes)
-    view_dir = [0, 0, 1]  # Vista hacia adelante
-    fresnel = 1.0 - abs(np.dot(normal, view_dir))
-    fresnel = fresnel ** 2
-    
-    # Colores neón cíclicos
-    time_sim = (u + v + w) * 5
-    r = (math.sin(time_sim) + 1) * 0.5
-    g = (math.sin(time_sim + 2.094) + 1) * 0.5  # 120° desfasado
-    b = (math.sin(time_sim + 4.188) + 1) * 0.5  # 240° desfasado
-    
-    # Intensificar con efecto fresnel
-    intensity = 0.3 + fresnel * 0.7
-    r *= intensity
-    g *= intensity
-    b *= intensity
-    
-    return [min(1.0, r), min(1.0, g), min(1.0, b)]
 
-def crystalShader(**kwargs):
-    """Shader de cristal con reflejos y transparencia simulada"""
-    A, B, C = kwargs["verts"]
-    u, v, w = kwargs["bCoords"]
-    
-    # Calcular normal
-    nA = [A[3], A[4], A[5]]
-    nB = [B[3], B[4], B[5]]
-    nC = [C[3], C[4], C[5]]
-    normal = [u*nA[0] + v*nB[0] + w*nC[0],
-              u*nA[1] + v*nB[1] + w*nC[1],
-              u*nA[2] + v*nB[2] + w*nC[2]]
-    
-    # Facetas del cristal
-    facet_u = math.floor(u * 8) / 8.0
-    facet_v = math.floor(v * 8) / 8.0
-    facet_pattern = (facet_u + facet_v) * 2.0
-    
-    # Color base azul cristalino
-    base_r = 0.7 + math.sin(facet_pattern) * 0.2
-    base_g = 0.8 + math.cos(facet_pattern * 1.3) * 0.1
-    base_b = 0.9 + math.sin(facet_pattern * 0.7) * 0.1
-    
-    # Reflejos especulares
-    light_dir = [0.5, 0.7, 1.0]  # Dirección de luz
-    reflection = max(0, np.dot(normal, light_dir)) ** 3
-    
-    # Añadir brillo especular
-    r = base_r + reflection * 0.5
-    g = base_g + reflection * 0.4
-    b = base_b + reflection * 0.3
-    
-    return [min(1.0, r), min(1.0, g), min(1.0, b)]
-
-def woodShader(**kwargs):
-    """Shader de madera con vetas y anillos"""
-    A, B, C = kwargs["verts"]
-    u, v, w = kwargs["bCoords"]
-    
-    # Coordenadas para crear anillos de madera
-    center_x = 0.5
-    center_y = 0.5
-    
-    # Distancia desde el centro (para anillos)
-    dist = math.sqrt((u - center_x)**2 + (v - center_y)**2)
-    
-    # Anillos de crecimiento
-    rings = math.sin(dist * 30) * 0.5 + 0.5
-    
-    # Vetas de madera
-    grain = math.sin(u * 40 + v * 10) * 0.3 + 0.7
-    
-    # Nudos ocasionales
-    knot_dist = math.sqrt((u - 0.3)**2 + (v - 0.7)**2)
-    knot = 1.0 - max(0, min(1, (0.1 - knot_dist) * 10))
-    
-    # Color base de madera
-    wood_base = rings * grain * knot
-    r = wood_base * 0.6 + 0.3    # Tono marrón
-    g = wood_base * 0.4 + 0.2    # Menos verde
-    b = wood_base * 0.2 + 0.1    # Menos azul
-    
-    return [min(1.0, r), min(1.0, g), min(1.0, b)]
-
-def galaxyShader(**kwargs):
     """Shader de galaxia con estrellas y nebulosas"""
     A, B, C = kwargs["verts"]
     u, v, w = kwargs["bCoords"]
@@ -348,3 +256,102 @@ def galaxyShader(**kwargs):
     b *= spiral
     
     return [max(0, min(1.0, r)), max(0, min(1.0, g)), max(0, min(1.0, b))]
+
+    """Rosa con aspecto cristalino y reflejos"""
+    import math
+    A, B, C = kwargs["verts"]
+    u, v, w = kwargs["bCoords"]
+    textureList = kwargs.get("textureList")
+    dirLight = kwargs["dirLight"]
+    
+    # Color base cristalino
+    r, g, b = 0.9, 0.95, 1.0
+    
+    # Aplicar textura con efecto cristal
+    if textureList and len(textureList) > 0 and len(A) >= 8:
+        tA = [A[6], A[7]]
+        tB = [B[6], B[7]]
+        tC = [C[6], C[7]]
+        
+        u_tex = u*tA[0] + v*tB[0] + w*tC[0]
+        v_tex = u*tA[1] + v*tB[1] + w*tC[1]
+        
+        u_tex = max(0.0, min(0.999, u_tex))
+        v_tex = max(0.0, min(0.999, v_tex))
+        
+        try:
+            texColor = textureList[0].getColor(u_tex, v_tex)
+            if texColor:
+                # Mezclar con tinte azul cristalino
+                r = texColor[0] * 0.8 + 0.2
+                g = texColor[1] * 0.9 + 0.1  
+                b = texColor[2] * 1.2
+        except:
+            pass
+    
+    # Efectos de cristal - facetas
+    facet_u = math.floor(u_tex * 12) / 12.0
+    facet_v = math.floor(v_tex * 12) / 12.0
+    facet_pattern = math.sin(facet_u * 20) * math.cos(facet_v * 20)
+    
+    # Añadir reflexiones especulares intensas
+    if len(A) >= 6:
+        nA = [A[3], A[4], A[5]]
+        nB = [B[3], B[4], B[5]]
+        nC = [C[3], C[4], C[5]]
+        
+        normal = [u*nA[0] + v*nB[0] + w*nC[0],
+                  u*nA[1] + v*nB[1] + w*nC[1],
+                  u*nA[2] + v*nB[2] + w*nC[2]]
+        
+        length = (normal[0]**2 + normal[1]**2 + normal[2]**2)**0.5
+        if length > 0:
+            normal = [n/length for n in normal]
+        
+        # Reflexión especular muy intensa
+        reflection = max(0, sum(n * l for n, l in zip(normal, dirLight))) ** 8
+        
+        r += reflection * 0.5 + facet_pattern * 0.2
+        g += reflection * 0.4 + facet_pattern * 0.2
+        b += reflection * 0.3 + facet_pattern * 0.3
+    
+    return [min(1.0, r), min(1.0, g), min(1.0, b)]
+
+def romanticShader(**kwargs):
+    import math
+    A, B, C = kwargs["verts"]
+    u, v, w = kwargs["bCoords"]
+    textureList = kwargs.get("textureList")
+    
+    r, g, b = 1.0, 1.0, 1.0
+    
+    if textureList and len(textureList) > 0 and len(A) >= 8:
+        tA = [A[6], A[7]]
+        tB = [B[6], B[7]]
+        tC = [C[6], C[7]]
+        
+        u_tex = u*tA[0] + v*tB[0] + w*tC[0]
+        v_tex = u*tA[1] + v*tB[1] + w*tC[1]
+        
+        u_tex = max(0.0, min(0.999, u_tex))
+        v_tex = max(0.0, min(0.999, v_tex))
+        
+        try:
+            texColor = textureList[0].getColor(u_tex, v_tex)
+            if texColor:
+                r, g, b = texColor[0], texColor[1], texColor[2]
+        except:
+            pass
+    
+    effect = math.sin(u_tex * 10) * math.cos(v_tex * 8) * 0.3
+    
+    r += effect * 0.3  
+    g += effect * 0.1  
+    b += effect * 0.5  
+    
+    brillo = max(0, 1.0 - (u + v + w - 0.33) * 3) * 0.4
+    r += brillo
+    g += brillo * 0.7
+    b += brillo
+    
+    return [min(1.0, r), min(1.0, g), min(1.0, b)]

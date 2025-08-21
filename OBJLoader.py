@@ -18,7 +18,12 @@ class OBJ:
                     normal = list(map(float, line.strip().split()[1:4]))
                     self.normals.append(normal)
                 elif line.startswith('vt '):
+                    # CORRECCIÓN: Asegurar que siempre tenemos 2 componentes
                     vts = list(map(float, line.strip().split()[1:3]))
+                    if len(vts) == 1:  # Solo u, añadir v=0
+                        vts.append(0.0)
+                    elif len(vts) == 0:  # Sin coordenadas, añadir u=0, v=0
+                        vts = [0.0, 0.0]
                     self.texcoords.append(vts)
                 elif line.startswith('f '):
                     face_vertices = line.strip().split()[1:]
@@ -26,9 +31,9 @@ class OBJ:
                         face = []
                         for v in face_vertices:
                             parts = v.split('/')
-                            vertex_index = int(parts[0]) if parts[0] else 1
-                            texcoord_index = int(parts[1]) if len(parts) > 1 and parts[1] else 1
-                            normal_index = int(parts[2]) if len(parts) > 2 and parts[2] else 1
+                            vertex_index = int(parts[0]) if parts[0] else 0
+                            texcoord_index = int(parts[1]) if len(parts) > 1 and parts[1] else 0
+                            normal_index = int(parts[2]) if len(parts) > 2 and parts[2] else 0
                             face.append((vertex_index, texcoord_index, normal_index))
                         self.faces.append(face)
                     elif len(face_vertices) > 3:

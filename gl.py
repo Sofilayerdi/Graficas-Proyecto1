@@ -262,8 +262,14 @@ class Renderer(object):
 			# Teorema del intercepto
 
 			D = [ A[0] + ((B[1] - A[1]) / (C[1] - A[1])) * (C[0] - A[0]), B[1] ]
+			baryCoords = barycentricCoords(A, B, C, D)
 
-			u, v, w = barycentricCoords(A, B, C, D)
+			if baryCoords is None:
+				#Si el triángulo es degenerado, no lo renderizamos
+				return
+			
+			
+			u, v, w = baryCoords
 			for i in range(2, len(A)):
 				D.append(u*A[2] + v*B[2] + w*C[2])
 
